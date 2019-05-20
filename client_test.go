@@ -21,7 +21,11 @@ func TestClient_Request(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		client, err := NewClient(testCase.network, testCase.url, time.Second*5)
+		client, err := NewClient(&ClientConfig{
+			Protocol: testCase.network,
+			Server:   testCase.url,
+			Deadline: time.Second * 5,
+		})
 		if err != nil {
 			t.Fatalf("Failed to create STUN client: %v", err)
 		}

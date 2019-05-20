@@ -5,6 +5,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/pion/transport/vnet"
 	"github.com/pkg/errors"
 )
 
@@ -16,30 +17,44 @@ var (
 	ErrResponseTooBig = errors.New("received too much data")
 )
 
+// ClientConfig is a set of configuration parameters for NewClient().
+type ClientConfig struct {
+	Protocol string
+	Server   string
+	Deadline time.Duration
+	Net      *vnet.Net
+}
+
 // Client is a STUN client that sents STUN requests and receives STUN responses
 type Client struct {
 	conn net.Conn
+	net  *vnet.Net
 }
 
 // NewClient creates a configured STUN client
-func NewClient(protocol, server string, deadline time.Duration) (*Client, error) {
-	dialer := &net.Dialer{
-		Timeout: deadline,
+func NewClient(config *ClientConfig) (*Client, error) {
+	nw := config.Net
+	if nw == nil {
+		nw = vnet.NewNet(nil) // defaults to normal operation
 	}
-	conn, err := dialer.Dial(protocol, server)
+	dialer := nw.CreateDialer(&net.Dialer{
+		Timeout: config.Deadline,
+	})
+	conn, err := dialer.Dial(config.Protocol, config.Server)
 	if err != nil {
 		return nil, err
 	}
-	err = conn.SetReadDeadline(time.Now().Add(deadline))
+	err = conn.SetReadDeadline(time.Now().Add(config.Deadline))
 	if err != nil {
 		return nil, err
 	}
-	err = conn.SetWriteDeadline(time.Now().Add(deadline))
+	err = conn.SetWriteDeadline(time.Now().Add(config.Deadline))
 	if err != nil {
 		return nil, err
 	}
 	return &Client{
 		conn: conn,
+		net:  nw,
 	}, nil
 }
 
@@ -60,23 +75,29 @@ func (c *Client) Request() (*Message, error) {
 
 // GetMappedAddressUDP initiates a stun requests to serverAddr using conn, reads the response and returns
 // the XorAddress returned by the stun server via the AttrXORMappedAddress attribute
-func GetMappedAddressUDP(conn *net.UDPConn, serverAddr net.Addr, deadline time.Duration) (*XorAddress, error) {
+func GetMappedAddressUDP(conn net.PacketConn, serverAddr net.Addr, deadline time.Duration) (*XorAddress, error) {
 	var err error
+
+	udpConn, ok := conn.(vnet.UDPPacketConn)
+	if !ok {
+		return nil, fmt.Errorf("not vnet.UDPConn")
+	}
+
 	if deadline > 0 {
-		err = conn.SetReadDeadline(time.Now().Add(deadline))
+		err = udpConn.SetReadDeadline(time.Now().Add(deadline))
 		if err != nil {
 			return nil, err
 		}
-		err = conn.SetWriteDeadline(time.Now().Add(deadline))
+		err = udpConn.SetWriteDeadline(time.Now().Add(deadline))
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	resp, err := request(
-		conn.Read,
+		udpConn.Read,
 		func(b []byte) (int, error) {
-			return conn.WriteTo(b, serverAddr)
+			return udpConn.WriteTo(b, serverAddr)
 		},
 	)
 	if err != nil {
@@ -84,11 +105,11 @@ func GetMappedAddressUDP(conn *net.UDPConn, serverAddr net.Addr, deadline time.D
 	}
 
 	if deadline > 0 {
-		err = conn.SetReadDeadline(time.Time{})
+		err = udpConn.SetReadDeadline(time.Time{})
 		if err != nil {
 			return nil, err
 		}
-		err = conn.SetWriteDeadline(time.Time{})
+		err = udpConn.SetWriteDeadline(time.Time{})
 		if err != nil {
 			return nil, err
 		}
