@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/pion/stun"
+	"github.com/yiyilive/stun"
 )
 
 func main() {

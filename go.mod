@@ -1,4 +1,4 @@
-module github.com/pion/stun
+module github.com/yiyilive/stun
 
 go 1.12
 

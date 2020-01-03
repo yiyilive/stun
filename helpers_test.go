@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/pion/stun/internal/testutil"
+	"github.com/yiyilive/stun/internal/testutil"
 )
 
 func BenchmarkBuildOverhead(b *testing.B) {

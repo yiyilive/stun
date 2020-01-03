@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pion/stun"
+	"github.com/yiyilive/stun"
 )
 
 var (

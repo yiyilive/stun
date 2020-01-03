@@ -17,7 +17,7 @@ linters-settings:
   lll:
     line-length: 140
   goimports:
-    local-prefixes: github.com/pion
+    local-prefixes: github.com/yiyilive
   gocritic:
     enabled-tags:
       - performance
